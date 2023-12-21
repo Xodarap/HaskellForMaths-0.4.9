@@ -18,6 +18,7 @@ import qualified Data.List as L
 data Digraph a = DG [a] [(a,a)] deriving (Eq,Ord,Show)
 
 
+cayleyDigraphP :: (Num a, Ord a) => [a] -> Digraph a
 cayleyDigraphP gs = DG vs es where
     vs = P.elts gs
     es = [(v,v') | v <- vs, v' <- nbrs v ]
@@ -32,6 +33,7 @@ cayleyGraphP gs = graph (vs,es) where -- G vs es where
     nbrs v = [v * g | g <- gs]
 
 
+cayleyDigraphS :: Ord a => ([a], [([a], [a])]) -> Digraph [a]
 cayleyDigraphS (gs,rs) = DG vs es where
     rs' = knuthBendix rs
     vs = L.sort $ nfs (gs,rs') -- calling elts would mean we invoked knuthBendix twice
@@ -56,20 +58,24 @@ cayleyGraphS (gs,rs) = graph (vs,es) where -- G vs es where
 
 
 -- given sequence of transpositions, return group elt it represents
+fromTranspositions :: [SGen] -> Permutation Int
 fromTranspositions ts = product $ map (\(S i) -> p [[i,i+1]]) ts
 
 -- given sequence of transpositions, return the permutation of [1..n] that it causes
+fromTrans :: [SGen] -> [Int]
 fromTrans ts = [i .^ (g^-1) | i <- [1..n] ] where
     g = fromTranspositions ts
     n = maximum $ supp g
 
 
+bubblesort :: Ord a => [a] -> [a]
 bubblesort [] = []
 bubblesort xs = bubblesort' [] xs where
     bubblesort' ls (r1:r2:rs) = if r1 <= r2 then bubblesort' (r1:ls) (r2:rs) else bubblesort' (r2:ls) (r1:rs)
     bubblesort' ls [r] = bubblesort (reverse ls) ++ [r]
 
 -- given a permutation of [1..n] (as a list), return the transpositions which led to it
+toTrans :: Ord a => [a] -> [SGen]
 toTrans [] = []
 toTrans xs = toTrans' 1 [] [] xs where
     toTrans' i ts ls (r1:r2:rs) = 
@@ -83,6 +89,7 @@ toTrans xs = toTrans' 1 [] [] xs where
 
 
 -- given a permutation of [1..n] (as a group elt), factor it into transpositions
+toTranspositions :: (Num a, Enum a, Ord a) => Permutation a -> [SGen]
 toTranspositions 1 = []
 toTranspositions g = toTrans [i .^ (g^-1) | i <- [1..n] ] where
     n = maximum $ supp g
@@ -98,6 +105,7 @@ toTranspositions g = toTrans [i .^ (g^-1) | i <- [1..n] ] where
 -- toTransposition . fromTranspositions == id (for reduced expressions only)
 
 
+inversions :: (Num b, Enum b, Ord b) => Permutation b -> [(b, b)]
 inversions g = [(i,j) | i <- [1..n], j <- [i+1..n], i .^ g > j .^ g]
     where n = maximum $ supp g
 

@@ -1,6 +1,7 @@
 -- Copyright (c) David Amos, 2008-2015. All rights reserved.
 
 {-# LANGUAGE MultiParamTypeClasses, TypeSynonymInstances, ScopedTypeVariables, EmptyDataDecls, FlexibleInstances #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Math.Algebra.Field.Extension where
 
@@ -25,6 +26,7 @@ instance (Eq a, Show a, Num a) => Show (UPoly a) where
     -- show (UP []) = "0"
     show (UP as) = showUP "x" as
 
+showUP :: (Eq a, Num a, Show a) => String -> [a] -> String
 showUP _ [] = "0"
 showUP v as = let powers = filter ( (/=0) . fst ) $ zip as [0..]
                   c:cs = concatMap showTerm powers
@@ -51,10 +53,12 @@ instance (Eq a, Num a) => Num (UPoly a) where
     abs _ = error "Prelude.Num.abs: inappropriate abstraction"
     signum _ = error "Prelude.Num.signum: inappropriate abstraction"
 
+toUPoly :: (Eq a, Num a) => [a] -> UPoly a
 toUPoly as = UP (reverse (dropWhile (== 0) (reverse as)))
 
 -- The fussiness of the code is to avoid adding trailing zeroes, eg [3] <+> [-3]
 -- Otherwise we would have to normalise after every addition
+(<+>) :: (Eq a, Num a) => [a] -> [a] -> [a]
 as <+> [] = as
 [] <+> bs = bs
 -- (a:as) <+> (b:bs) = (a+b) : (as <+> bs)
@@ -64,6 +68,7 @@ as <+> [] = as
 
 -- The fussiness of the code is to avoid adding trailing zeroes.
 -- Note that since we call <+>, we rely on it having similar properties.
+(<*>) :: (Num a, Eq a) => [a] -> [a] -> [a]
 [] <*> _ = []
 _ <*> [] = [] -- to avoid [0,1] <*> [] -> [0]
 (a:as) <*> bs = if null as then map (a*) bs else map (a*) bs <+> (0 : as <*> bs)
@@ -78,6 +83,7 @@ _ <*> [] = []
 (a:as) <*> (b:bs) = [a*b] <+> (0 : map (a*) bs) <+> (0 : map (*b) as) <+> (0 : 0 : as <*> bs)
 -}
 
+convert :: (Eq a, Num a) => UPoly Integer -> UPoly a
 convert (UP as) = toUPoly $ map fromInteger as
 -- Can be used with type annotations to construct polynomials over other types, eg
 -- > convert (x^2+3*x+2) :: UPoly F2
@@ -89,9 +95,11 @@ convert (UP as) = toUPoly $ map fromInteger as
 -- DIVISION ALGORITHM
 
 -- degree
+deg :: UPoly a -> Int
 deg (UP as) = length as
 
 -- leading term
+lt :: UPoly a -> a
 lt (UP as) = last as
 
 monomial a i = UP $ replicate i 0 ++ [a]
@@ -107,9 +115,11 @@ quotRemUP f g = qr 0 f where
     lt_g = lt g
 
 
+modUP :: (Eq k, Fractional k) => UPoly k -> UPoly k -> UPoly k
 modUP f g = snd $ quotRemUP f g
 
 -- extendedEuclidUP f g returns (u,v,d) such that u*f + v*g = d
+extendedEuclidUP :: (Eq k, Fractional k) => UPoly k -> UPoly k -> (UPoly k, UPoly k, UPoly k)
 extendedEuclidUP f g = extendedEuclidUP' f g [] where
     extendedEuclidUP' d 0 qs = let (u,v) = unwind 1 0 qs in (u,v,d)
     extendedEuclidUP' f g qs = let (q,r) = quotRemUP f g in extendedEuclidUP' g r (q:qs)
@@ -146,6 +156,7 @@ instance (Eq k, Fractional k, PolynomialAsType k poly) => Fractional (ExtensionF
     fromRational q = fromInteger a / fromInteger b where a = numerator q; b = denominator q
 
 -- divide through
+(/>) :: (Eq a, Fractional a) => a -> UPoly a -> UPoly a
 c /> f@(UP as) | c == 1 = f
                | c /= 0 = UP (map (c' *) as) where c' = recip c
 
@@ -162,11 +173,13 @@ instance (FinSet fp, Eq fp, Num fp, PolynomialAsType fp poly) => FinSet (Extensi
         fp' = elts
         d = deg $ pvalue (undefined :: (fp,poly))
 
+embed :: (Eq k, Num k) => UPoly Integer -> ExtensionField k poly
 embed f = Ext (convert f)
 
 
 -- PRIME POWER FINITE FIELDS
 
+polys :: (Eq t, Eq a, Num t, Num a) => t -> [a] -> [UPoly a]
 polys d fp = map toUPoly $ polys' d where
     polys' 0 = [[]]
     polys' d = [x:xs | x <- fp, xs <- polys' (d-1)] -- return in ascending order
