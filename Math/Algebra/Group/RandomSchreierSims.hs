@@ -110,6 +110,7 @@ updateLevels' ls (r@((b,t),s):rs) h b' =
 
 -- recover the base tranversals from the sgs. gs must be an sgs
 -- baseTransversalsSGS gs = [let hs = [h | h <- gs, b <= minsupp h] in (b, cosetRepsGx hs b) | b <- bs]
+baseTransversalsSGS :: Ord k => [Permutation k] -> [(k, M.Map k (Permutation k))]
 baseTransversalsSGS gs = [let hs = filter ( (b <=) . minsupp ) gs in (b, cosetRepsGx hs b) | b <- bs]
     where bs = toListSet $ map minsupp gs
     -- where bs = toListSet $ concatMap supp gs

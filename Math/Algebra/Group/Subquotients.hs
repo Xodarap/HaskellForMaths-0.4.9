@@ -17,20 +17,25 @@ import Math.Algebra.Group.RandomSchreierSims
 -- Source: Seress, Permutation Group Algorithms
 
 
+isLeft :: Either a b -> Bool
 isLeft (Left _) = True
 isLeft (Right _) = False
 
+isRight :: Either a b -> Bool
 isRight (Right _) = True
 isRight (Left _) = False
 
 
+unRight :: Ord a1 => Permutation (Either a2 a1) -> Permutation a1
 unRight = fromPairs . map (\(Right a, Right b) -> (a,b)) . toPairs
 
+restrictLeft :: Ord a => Permutation (Either a b) -> Permutation a
 restrictLeft g = fromPairs [(a,b) | (Left a, Left b) <- toPairs g]
 -- note that this is doing a filter - taking only the left part of the action - and a map, unLefting
 
 
 -- pointwise stabiliser of xs
+ptStab :: (Show b, Foldable t, Ord b) => [Permutation b] -> t b -> [Permutation b]
 ptStab gs delta = map unRight $ dropWhile (isLeft . minsupp) $ sgs gs' where
     gs' = [ (fromPairs . map (\(a,b) -> (lr a, lr b)) . toPairs) g | g <- gs]
     lr x = if x `elem` delta then Left x else Right x
@@ -79,13 +84,12 @@ factorNotTransitive gs = transitiveConstituentHomomorphism' gs delta where
 -- |Given a group gs and a transitive constituent ys, return the kernel and image of the transitive constituent homomorphism.
 -- That is, suppose that gs acts on a set xs, and ys is a subset of xs on which gs acts transitively.
 -- Then the transitive constituent homomorphism is the restriction of the action of gs to an action on the ys.
-transitiveConstituentHomomorphism
-  :: (Ord a, Show a) =>
-     [Permutation a] -> [a] -> ([Permutation a], [Permutation a])
+transitiveConstituentHomomorphism :: (Ord a, Show a) => [Permutation a] -> [a] -> ([Permutation a], [Permutation a])
 transitiveConstituentHomomorphism gs delta
     | delta == closure delta [(.^ g) | g <- gs] -- delta is closed under action of gs, hence a union of orbits
         = transitiveConstituentHomomorphism' gs delta
 
+transitiveConstituentHomomorphism' :: (Foldable t, Show b, Ord b) => [Permutation b] -> t b -> ([Permutation b], [Permutation b])
 transitiveConstituentHomomorphism' gs delta = (ker, im) where
     gs' = sgs $ map (fromPairs . map (\(a,b) -> (lr a, lr b)) . toPairs) gs
     -- as delta is a transitive constituent, we will always have a and b either both Left or both Right
@@ -98,6 +102,7 @@ transitiveConstituentHomomorphism' gs delta = (ker, im) where
 
 -- Holt p83ff (and also Seress p107ff)
 -- Find a minimal block containing ys. ys are assumed to be sorted.
+minimalBlock :: Ord a => [Permutation a] -> [a] -> [[a]]
 minimalBlock gs ys@(y1:yt) = minimalBlock' p yt gs where
     xs = foldl union [] $ map supp gs
     p = M.fromList $ [(yi,y1) | yi <- ys] ++ [(x,x) | x <- xs \\ ys]
@@ -160,6 +165,7 @@ blockHomomorphism gs bs
     | bs == closure bs [(-^ g) | g <- gs] -- bs is closed under action of gs
         = blockHomomorphism' gs bs
 
+blockHomomorphism' :: (Show b, Ord b) => [Permutation b] -> [[b]] -> ([Permutation b], [Permutation [b]])
 blockHomomorphism' gs bs = (ker,im) where
     gs' = sgs $ map lr gs
     lr g = fromPairs $ [(Left b, Left $ b -^ g) | b <- bs] ++ [(Right x, Right y) | (x,y) <- toPairs g]
@@ -174,6 +180,7 @@ blockHomomorphism' gs bs = (ker,im) where
 
 -- Seress 115
 -- Given G, H < Sym(Omega) return <H^G> (the normal closure)
+normalClosure :: (Show b, Ord b) => [Permutation b] -> [Permutation b] -> [Permutation b]
 normalClosure gs hs = map unRight $ dropWhile (isLeft . minsupp) $ sgs ks where
     xs = foldl union [] $ map supp $ gs ++ hs
     ds = map diag gs -- {(g,g) | g <- G}
@@ -184,6 +191,7 @@ normalClosure gs hs = map unRight $ dropWhile (isLeft . minsupp) $ sgs ks where
 
 -- Seress 116
 -- Given G, H < Sym(Omega) return <H^G> `intersection` G
+intersectionNormalClosure :: (Show b, Ord b) => [Permutation b] -> [Permutation b] -> [Permutation b]
 intersectionNormalClosure gs hs = map unRight $ dropWhile (isLeft . minsupp) $ sgs ks where
     xs = foldl union [] $ map supp $ gs ++ hs
     ds = map diag gs -- {(g,g) | g <- G}
@@ -196,6 +204,7 @@ intersectionNormalClosure gs hs = map unRight $ dropWhile (isLeft . minsupp) $ s
 -- CENTRALISER IN THE SYMMETRIC GROUP
 
 -- Centralizer of G in Sym(X) - transitive case
+centralizerSymTrans :: (Show a, Ord a) => [Permutation a] -> [Permutation a]
 centralizerSymTrans gs = filter (/= 1) $ centralizerSymTrans' [] fix_g_a where
     xs@(a:_) = foldl union [] $ map supp gs
     ss = sgs gs
