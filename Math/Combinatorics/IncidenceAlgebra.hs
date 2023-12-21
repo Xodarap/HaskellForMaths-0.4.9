@@ -59,8 +59,10 @@ rankPartition (Iv poset@(Poset (set,po)) (a,b)) = rankPartition' S.empty [a] (L.
 -}
 
 -- The sub-poset defined by an interval
+ivPoset :: Interval t -> Math.Combinatorics.Poset.Poset t
 ivPoset (Iv poset@(Poset (_,po)) (x,y)) = Poset (interval poset (x,y), po)
 
+intervalIsos:: (Ord a, Ord b) => Interval a -> Interval b -> [[(a, b)]]
 intervalIsos iv1 iv2 = orderIsos (ivPoset iv1) (ivPoset iv2)
 
 isIntervalIso iv1 iv2 = isOrderIso (ivPoset iv1) (ivPoset iv2)
@@ -79,6 +81,9 @@ intervalIsoMap1 poset = intervalIsoMap' M.empty [Iv poset xy | xy <- L.sort (int
 -- A poset on n vertices has at most n(n+1)/2 intervals
 -- In the worst case, we might have to compare each interval to all earlier intervals
 -- Hence this is O(n^4)
+-- intervalIsoMap
+--   :: Ord a =>
+    --  Poset a -> Map (Interval a) (Maybe (Interval a))
 intervalIsoMap poset = isoMap
     where ivs = [Iv poset xy | xy <- intervals poset]
           isoMap = M.fromList [(iv, isoMap' iv) | iv <- ivs]
@@ -129,6 +134,10 @@ zetaIA poset = sumv $ basisIA poset
 -- See Stanley, Enumerative Combinatorics I, p115ff, for more similar
 
 -- calculate the mobius function of a poset: naive implementation
+muIA1
+  :: (Num k, Ord a, Show a, Eq k) =>
+     Math.Combinatorics.Poset.Poset a
+     -> Math.Algebras.VectorSpace.Vect k (Interval a)
 muIA1 poset@(Poset (set,po)) = sum [mu (x,y) *> return (Iv poset (x,y)) | x <- set, y <- set]
     where mu (x,y) | x == y    = 1
                    | po x y    = negate $ sum [mu (x,z) | z <- set, po x z, po z y, z /= y]
@@ -179,6 +188,7 @@ numChainsIA :: (Ord a, Show a) => Poset a -> Vect Q (Interval a)
 numChainsIA poset = (2 *> unitIA poset <-> zetaIA poset)^-1
 
 -- The eta function on intervals (x,y) is 1 if x -< y (y covers x), 0 otherwise
+etaIA :: (Num k, Ord a, Eq k) => Poset a -> Vect k (Interval a)
 etaIA poset = let DG vs es = hasseDigraph poset
               in sumv [return (Iv poset (x,y)) | (x,y) <- es]
 
