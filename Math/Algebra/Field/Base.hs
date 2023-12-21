@@ -20,7 +20,9 @@ instance Show Q where
                      b = denominator x
 
 
+numeratorQ :: Q -> Integer
 numeratorQ (Q x) = Data.Ratio.numerator x
+denominatorQ :: Q -> Integer
 denominatorQ (Q x) = Data.Ratio.denominator x
 
 

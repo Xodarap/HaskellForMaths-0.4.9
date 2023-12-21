@@ -203,17 +203,19 @@ numMaximalChainsIA poset = (unitIA poset <-> etaIA poset)^-1
 
 
 -- SOME KNOWN MOBIUS FUNCTIONS
-
+muC :: (Eq k, Num k) => Int -> Vect k (Interval Int)
 muC n = sum [mu' (a,b) *> return (Iv poset (a,b)) | (a,b) <- intervals poset]
     where mu' (a,b) | a == b    =  1
                     | a+1 == b  = -1
                     | otherwise =  0
           poset = chainN n
 
+muB :: (Eq k, Num k) => Int -> Vect k (Interval [Int])
 muB n = sumv [(-1)^(length b - length a) *> return (Iv poset (a,b)) | (a,b) <- intervals poset]
     where poset = posetB n
 -- van Lint & Wilson p335
 
+muL :: (Ord fq, Num fq) => Int -> [fq] -> Vect Int (Interval [[fq]])
 muL n fq = sumv [ ( (-1)^k * q^(k*(k-1) `div` 2) ) *> return (Iv poset (a,b)) |
                   (a,b) <- intervals poset,
                   let k = length b - length a ] -- the difference in dimensions
