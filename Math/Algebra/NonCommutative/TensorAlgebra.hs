@@ -38,12 +38,15 @@ tensorBasis n = mbasisQA [e_ i | i <- [1..n]] []
 -- Exterior product satisfies the universal property that any alternating multilinear map from the cartesian product can be factored through the exterior product
 
 -- Exterior algebra over k^n is tensor algebra over k^n quotiented by these relations
+extRelations :: Int -> [NPoly Q Basis]
 extRelations n = [e_ i * e_ i | i <- [1..n] ] ++
                  [e_ i * e_ j + e_ j * e_ i | i <- [1..n], j <- [i+1..n] ]
 
+extnf :: NPoly Q Basis -> NPoly Q Basis
 extnf t = t %% (extRelations $ dim t)
 
 -- Monomial basis for exterior algebra over k^n - finite
+exteriorBasis :: Int -> [NPoly Q Basis]
 exteriorBasis n = mbasisQA [e_ i | i <- [1..n]] $ extRelations n
 
 
@@ -51,11 +54,14 @@ exteriorBasis n = mbasisQA [e_ i | i <- [1..n]] $ extRelations n
 -- Symmetric product satisfies the universal property that any symmetric multilinear map from the cartesian product can be factored through the symmetric product
 
 -- Symmetric algebra over k^n is tensor algebra over k^n quotiented by these relations
+symRelations :: Int -> [NPoly Q Basis]
 symRelations n = [e_ i * e_ j - e_ j * e_ i | i <- [1..n], j <- [i+1..n] ]
 
+symnf :: NPoly Q Basis -> NPoly Q Basis
 symnf t = t %% (symRelations $ dim t)
 
 -- Monomial basis for symmetric algebra over k^n - infinite
+symmetricBasis :: Int -> [NPoly Q Basis]
 symmetricBasis n = mbasisQA [e_ i | i <- [1..n]] $ symRelations n
 
 
@@ -74,11 +80,14 @@ symmetricBasis n = mbasisQA [e_ i | i <- [1..n]] $ symRelations n
 
 -- Weyl algebra W(V) is a "quantization" of the Symmetric algebra Sym(V)
 
+weylRelations :: Int -> [NPoly Q Basis]
 weylRelations n = [e_ j * e_ i - e_ i * e_ j | i <- [1..2*n], j <- [i+1..2*n], j /= i+n ] ++
                   [e_ (i+n) * e_ i - e_ i * e_ (i+n) - 1 | i <- [1..n] ]
 
+weylnf :: Int -> NPoly Q Basis -> NPoly Q Basis
 weylnf n t = t %% (weylRelations n)
 
+weylBasis :: Int -> [NPoly Q Basis]
 weylBasis n = mbasisQA [e_ i | i <- [1..2*n]] $ weylRelations n
 
 

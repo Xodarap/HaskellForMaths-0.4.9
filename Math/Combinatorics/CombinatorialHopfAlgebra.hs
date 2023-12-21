@@ -94,6 +94,7 @@ instance Graded (Shuffle a) where grade (Sh xs) = length xs
 sh :: [a] -> Vect Q (Shuffle a)
 sh = return . Sh
 
+shuffles :: [a] -> [a] -> [[a]]
 shuffles (x:xs) (y:ys) = map (x:) (shuffles xs (y:ys)) ++ map (y:) (shuffles (x:xs) ys)
 shuffles xs [] = [xs]
 shuffles [] ys = [ys]
@@ -145,6 +146,7 @@ ssymF xs | L.sort xs == [1..n] = return (SSymF xs)
 
 -- so this is a candidate mult. It is associative and SSymF [] is obviously a left and right identity
 -- (need quickcheck properties to prove that)
+shiftedConcat :: SSymF -> SSymF -> SSymF
 shiftedConcat (SSymF xs) (SSymF ys) = let k = length xs in SSymF (xs ++ map (+k) ys)
 
 prop_Associative f (x,y,z) = f x (f y z) == f (f x y) z
@@ -918,6 +920,7 @@ descentMap :: (Eq k, Num k) => Vect k SSymF -> Vect k QSymF
 descentMap = nf . fmap (\(SSymF xs) -> QSymF (descentComposition xs))
 -- descentMap == leftLeafCompositionMap . descendingTreeMap
 
+underComposition :: QSymF -> SSymF
 underComposition (QSymF ps) = foldr under (SSymF []) [SSymF [1..p] | p <- ps]
     where under (SSymF xs) (SSymF ys) = let q = length ys
                                             zs = map (+q) xs ++ ys -- so it has a global descent at the split

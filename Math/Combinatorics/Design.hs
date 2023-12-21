@@ -16,7 +16,7 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 
 import Math.Common.ListSet (intersect, symDiff)
-import Math.Core.Utils (combinationsOf)
+import Math.Core.Utils (combinationsOf, FinSet)
 
 import Math.Algebra.Field.Base
 import Math.Algebra.Field.Extension
@@ -32,6 +32,7 @@ import Math.Combinatorics.FiniteGeometry
 {-
 set xs = map head $ group $ sort xs
 -}
+isSubset :: (Foldable t1, Foldable t2, Eq a) => t1 a -> t2 a -> Bool
 isSubset xs ys = all (`elem` ys) xs
 
 
@@ -40,18 +41,23 @@ isSubset xs ys = all (`elem` ys) xs
 data Design a = D [a] [[a]] deriving (Eq,Ord,Show)
 -- Do we or should we insist on ordering of the xs or bs?
 
+design :: Ord a => ([a], [[a]]) -> Design a
 design (xs,bs) | isValid d = d where d = D xs bs
 
+toDesign :: Ord a => ([a], [[a]]) -> Design a
 toDesign (xs,bs) = D xs' bs' where
     xs' = L.sort xs
     bs' = L.sort $ map L.sort bs -- in fact don't require that the blocks are in order
 
+isValid :: Ord a => Design a -> Bool
 isValid (D xs bs) = (xs == L.sort xs || error "design: points are not in order")
                  && (all (\b -> b == L.sort b) bs || error "design: blocks do not have points in order")
 -- could also check that each block is a subset of xs, etc
 
+points :: Design a -> [a]
 points (D xs bs) = xs
 
+blocks :: Design a -> [[a]]
 blocks (D xs bs) = bs
 
 
@@ -63,6 +69,7 @@ noRepeatedBlocks (D xs bs) = all ( (==1) . length ) $ L.group $ L.sort bs
 -- Note that the design parameters functions don't check no repeated blocks, so they're also valid for t-structures
 
 -- given t and a t-(v,k,lambda) design, return (v,k,lambda)
+tDesignParams :: Eq a => Int -> Design a -> Maybe (Int, Int, Int)
 tDesignParams t d =
     case findvk d of
     Nothing -> Nothing
@@ -71,16 +78,19 @@ tDesignParams t d =
         Nothing -> Nothing
         Just lambda -> Just (v,k,lambda)
 
+findvk :: Design a -> Maybe (Int, Int)
 findvk (D xs bs) =
     let k:ls = map length bs
     in if all (==k) ls then Just (v,k) else Nothing
     where v = length xs
 
+findlambda :: Eq a => Int -> Design a -> Maybe Int
 findlambda t (D xs bs) =
     let lambda:ls = [length [b | b <- bs, ts `isSubset` b] | ts <- combinationsOf t xs]
     in if all (==lambda) ls then Just lambda else Nothing
 
 -- given (xs,bs), return design parameters t-(v,k,lambda) with t maximal
+designParams :: Eq a => Design a -> Maybe (Int, (Int, Int, Int))
 designParams d =
     case findvk d of
     Nothing -> Nothing
@@ -90,12 +100,16 @@ designParams d =
         (t,Just lambda):_ -> Just (t,(v,k,lambda))
 -- Note that a 0-(v,k,lambda) design just means that there are lambda blocks, all of size k, with no other regularity
 
+isStructure :: Eq a => Int -> Design a -> Bool
 isStructure t d = isJust $ tDesignParams t d
+isDesign :: Ord a => Int -> Design a -> Bool
 
+is2Design :: Ord a => Design a -> Bool
 isDesign t d = noRepeatedBlocks d && isStructure t d
 
 is2Design d = isDesign 2 d
 
+isSquare :: Ord a => Design a -> Bool
 -- square 2-design (more often called "symmetric" in the literature)
 isSquare d@(D xs bs) = is2Design d && length xs == length bs
 
@@ -110,12 +124,14 @@ incidenceMatrix (D xs bs) = [ [if x `elem` b then 1 else 0 | x <- xs] | b <- bs]
 -- SOME FAMILIES OF DESIGNS
 
 -- the following is trivially a k-(v,k,lambda) design
+subsetDesign :: (Ord a, Num a, Enum a) => a -> Int -> Design a
 subsetDesign v k = design (xs,bs) where
     xs = [1..v]
     bs = combinationsOf k xs
 
 -- Cameron & van Lint, p30
 -- the pair design on n points is the complete graph on n points considered as a 2-(n,2,1) design
+pairDesign :: Integral a => a -> Design a
 pairDesign n = D vs es where
     graph = G.k n
     vs = vertices graph
@@ -144,11 +160,13 @@ pg2 fq = design (points, lines) where
 -- For i==1, this is a 2-((q^(n+1)-1)/(q-1),q+1,1) design
 -- For i==n-1, this is a 2-((q^(n+1)-1)/(q-1),(q^n-1)/(q-1),(q^(n-1)-1)/(q-1)) design
 -- Cameron & van Lint, p8
+flatsDesignPG :: (Ord a, FinSet a, Num a) => Int -> [a] -> Int -> Design [a]
 flatsDesignPG n fq k = design (points, blocks) where
     points = ptsPG n fq
     blocks = map closurePG $ flatsPG n fq k -- the closurePG replaces the generators of the flat by the list of points of the flat
 
 -- The projective point-hyperplane design is also denoted PG(n,q)
+-- pg :: (Ord a, Math.Core.Utils.FinSet a, Num a) => Int -> [a] -> Design [a]
 pg n fq = flatsDesignPG n fq (n-1)
 
 -- (Cameron & van Lint don't actually state that this is a design except when k == n-1)
@@ -164,6 +182,7 @@ ag n fq = flatsDesignAG n fq (n-1)
 
 
 -- convert a design to be defined over the set [1..n]
+to1n :: (Num a2, Enum a2, Ord a1) => Design a1 -> Design a2
 to1n (D xs bs) = (D xs' bs') where
     mapping = M.fromList $ zip xs [1..] -- the mapping from vs to [1..n]
     xs' = M.elems mapping
@@ -171,6 +190,7 @@ to1n (D xs bs) = (D xs' bs') where
 
 
 -- Cameron & van Lint p10
+paleyDesign :: (Ord a, Num a) => [a] -> Design a
 paleyDesign fq | length fq `mod` 4 == 3 = design (xs,bs) where
     xs = fq
     qs = set [x^2 | x <- xs] L.\\ [0] -- the non-zero squares in Fq

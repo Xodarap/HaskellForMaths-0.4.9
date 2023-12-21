@@ -44,11 +44,14 @@ instance (Eq k, Num k) => Module k Mat2 EBasis where
 -- action (a b) `te` (x) = (ax+by)
 --        (c d)      (y)   (cx+dy)
 
+toMat2 :: (Eq k, Num k) => [[k]] -> Vect k Mat2
 toMat2 [[a,b],[c,d]] = sum $ zipWith (\x e -> unit x * return e) [a,b,c,d] [E2 1 1, E2 1 2, E2 2 1, E2 2 2]
 -- fromMat2
 
+toEB2 :: (Eq k, Num k) => [k] -> Vect k EBasis
 toEB2 [x,y] = foldl add zerov $ zipWith (\x e -> x `smultL` return e) [x,y] [E 1, E 2]
 
+toEB :: (Eq k, Num k) => [k] -> Vect k EBasis
 toEB xs = foldl add zerov $ zipWith (\x e -> x `smultL` return e) xs (map E [1..])
 
 

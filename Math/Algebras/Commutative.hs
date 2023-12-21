@@ -101,16 +101,20 @@ instance Monomial GlexMonomial where
 
 -- DIVISION
 
+lt :: Vect k b -> (b, k)
 lt (V (t:ts)) = t
 
 class DivisionBasis b where
     dividesB :: b -> b -> Bool
     divB :: b -> b -> b
 
+dividesT :: DivisionBasis b1 => (b1, b2) -> (b1, b3) -> Bool
 dividesT (b1,x1) (b2,x2) = dividesB b1 b2
+divT :: (DivisionBasis a, Fractional b) => (a, b) -> (a, b) -> (a, b)
 divT (b1,x1) (b2,x2) = (divB b1 b2, x1/x2)
 
 -- given f, gs, find as, r such that f = sum (zipWith (*) as gs) + r, with r not divisible by any g
+quotRemMP :: (DivisionBasis b1, Fractional b3, Eq b3, Ord b1, Show b1, Algebra b3 b1) => Vect b3 b1 -> [Vect b3 b1] -> ([Vect b3 b1], Vect b3 b1)
 quotRemMP f gs = quotRemMP' f (replicate n 0, 0) where
     n = length gs
     quotRemMP' 0 (us,r) = (us,r)

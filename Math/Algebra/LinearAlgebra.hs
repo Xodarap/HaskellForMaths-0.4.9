@@ -74,14 +74,17 @@ m <<*> v = map (<.> v) m
 v <*>> m = map (v <.>) (L.transpose m)
 
 
+fMatrix :: (Num t, Enum t) => t -> (t -> t -> a) -> [[a]]
 fMatrix n f = [[f i j | j <- [1..n]] | i <- [1..n]] 
 
 -- version with indices from zero
+fMatrix' :: (Num t, Enum t) => t -> (t -> t -> a) -> [[a]]
 fMatrix' n f = [[f i j | j <- [0..n-1]] | i <- [0..n-1]] 
 
 
 -- idMx n = fMatrix n (\i j -> if i == j then 1 else 0)
 
+idMx :: Num a => Int -> [[a]]
 idMx n = idMxs !! n where
     idMxs = map snd $ iterate next (0,[])
     next (j,m) = (j+1, (1 : replicate j 0) : map (0:) m)
@@ -150,6 +153,7 @@ inverse m =
        else Nothing
 
 -- given (M|I), use row operations to get to (U|A), where U is upper triangular with 1s on diagonal
+inverse1 :: (Eq a, Fractional a) => [[a]] -> [[a]]
 inverse1 [] = []
 inverse1 ((x:xs):rs) =
     if x /= 0
@@ -161,11 +165,13 @@ inverse1 ((x:xs):rs) =
 -- This is basically row echelon form
 
 -- given (U|A), use row operations to get to M^-1
+inverse2 :: (Eq a, Num a) => [[a]] -> [[a]]
 inverse2 [] = []
 inverse2 ((1:r):rs) = inverse2' r rs : inverse2 rs where
     inverse2' xs [] = xs
     inverse2' (x:xs) ((1:r):rs) = inverse2' (xs <-> x *> r) rs
 
+(!) :: [a] -> Int -> a
 xs ! i = xs !! (i-1) -- ie, a 1-based list lookup instead of 0-based
 
 rowEchelonForm [] = []
@@ -188,6 +194,7 @@ reducedRowEchelonForm m = reverse $ reduce $ reverse $ rowEchelonForm m where
 
 -- Given a matrix m and (column) vector b, either find (column vector) x such that m x == b,
 -- or indicate that there is none
+solveLinearSystem :: (Eq a, Fractional a) => [[a]] -> [a] -> Maybe [a]
 solveLinearSystem m b =
     let augmented = zipWith (\r x -> r ++ [x]) m b -- augmented matrix
         trisystem = inverse1 augmented -- upper triangular form
@@ -204,16 +211,20 @@ solveLinearSystem m b =
 isZero v = all (==0) v
 
 -- inSpanRE m v returns whether the vector v is in the span of the matrix m, where m is required to be in row echelon form
+inSpanRE :: (Eq a, Num a) => [[a]] -> [a] -> Bool
 inSpanRE ((1:xs):bs) (y:ys) = inSpanRE (map tail bs) (if y == 0 then ys else ys <-> y *> xs)
 inSpanRE ((0:xs):bs) (y:ys) = if y == 0 then inSpanRE (xs : map tail bs) ys else False
 inSpanRE _ ys = isZero ys
 
+rank :: (Eq a, Fractional a) => [[a]] -> Int
 rank m = length $ filter (not . isZero) $ rowEchelonForm m
 
 -- kernel of a matrix
 -- returns basis for vectors v s.t m <<*> v == 0
+kernel :: (Ord a, Fractional a) => [[a]] -> [[a]]
 kernel m = kernelRRE $ reducedRowEchelonForm m
 
+kernelRRE :: (Ord a, Num a) => [[a]] -> [[a]]
 kernelRRE m =
     let nc = length $ head m -- the number of columns
         is = findLeadingCols 1 (L.transpose m) -- these are the indices of the columns which have a leading 1

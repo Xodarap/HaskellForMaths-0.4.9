@@ -46,6 +46,7 @@ instance Algebra Q (SL2 ABCD) where -- to do this for Num k instead of Q we woul
         x''' = fmap SL2 x'' -- ie wrap the monomials up as SL2 again
         -- mmult (Glex si xis) (Glex sj yjs) = Glex (si+sj) $ addmerge xis yjs
 
+sl2Var :: Num k => v -> Vect k (SL2 v)
 sl2Var v = V [(SL2 (Glex 1 [(v,1)]), 1)] -- :: Vect Q (SL2 ABCD)
 
 
