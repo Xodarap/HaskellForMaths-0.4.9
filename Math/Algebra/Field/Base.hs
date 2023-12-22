@@ -1,6 +1,7 @@
 -- Copyright (c) David Amos, 2008. All rights reserved.
 
 {-# LANGUAGE GeneralizedNewtypeDeriving, ScopedTypeVariables #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Math.Algebra.Field.Base where
 
@@ -20,13 +21,16 @@ instance Show Q where
                      b = denominator x
 
 
+numeratorQ :: Q -> Integer
 numeratorQ (Q x) = Data.Ratio.numerator x
+denominatorQ :: Q -> Integer
 denominatorQ (Q x) = Data.Ratio.denominator x
 
 
 -- PRIME FIELDS
 
 -- extendedEuclid a b returns (u,v,d) such that u*a + v*b = d
+extendedEuclid :: Integral a => a -> a -> (a, a, a)
 extendedEuclid a b | a >= 0 && b >= 0 = extendedEuclid' a b [] where
     extendedEuclid' d 0 qs = let (u,v) = unwind 1 0 qs in (u,v,d)
     extendedEuclid' a b qs = let (q,r) = quotRem a b in extendedEuclid' b r (q:qs)
@@ -67,13 +71,16 @@ instance IntegerAsType p => FiniteField (Fp p) where
 instance IntegerAsType p => FinSet (Fp p) where
     elts = map fromInteger [0..p'-1] where p' = value (undefined :: p)
 
+primitiveElt :: (Eq a, Num a) => [a] -> a
 primitiveElt fq = head [x | x <- tail fq, length (powers x) == q-1] where
     q = length fq
 
+powers :: (Eq a, Num a) => a -> [a]
 powers x | x /= 0 = 1 : takeWhile (/=1) (iterate (*x) x)
 
 
 -- characteristic of a finite field
+char :: Foldable t => t a -> Int
 char fq = head [p | p <- [2..], length fq `mod` p == 0]
 
 
@@ -109,24 +116,30 @@ type F11 = Fp T11
 f11 = map fromInteger [0..10] :: [F11]
 
 type F13 = Fp T13
+f13 :: [F13]
 f13 = map fromInteger [0..12] :: [F13]
 
 type F17 = Fp T17
+f17 :: [F17]
 f17 = map fromInteger [0..16] :: [F17]
 
 type F19 = Fp T19
 f19 = map fromInteger [0..18] :: [F19]
 
 type F23 = Fp T23
+f23 :: [F23]
 f23 = map fromInteger [0..22] :: [F23]
 
 type F29 = Fp T29
+f29 :: [F29]
 f29 = map fromInteger [0..28] :: [F29]
 
 type F31 = Fp T31
+f31 :: [F31]
 f31 = map fromInteger [0..30] :: [F31]
 
 type F37 = Fp T37
+f37 :: [F37]
 f37 = map fromInteger [0..36] :: [F37]
 
 type F41 = Fp T41

@@ -94,6 +94,7 @@ instance Graded (Shuffle a) where grade (Sh xs) = length xs
 sh :: [a] -> Vect Q (Shuffle a)
 sh = return . Sh
 
+shuffles :: [a] -> [a] -> [[a]]
 shuffles (x:xs) (y:ys) = map (x:) (shuffles xs (y:ys)) ++ map (y:) (shuffles (x:xs) ys)
 shuffles xs [] = [xs]
 shuffles [] ys = [ys]
@@ -145,6 +146,7 @@ ssymF xs | L.sort xs == [1..n] = return (SSymF xs)
 
 -- so this is a candidate mult. It is associative and SSymF [] is obviously a left and right identity
 -- (need quickcheck properties to prove that)
+shiftedConcat :: SSymF -> SSymF -> SSymF
 shiftedConcat (SSymF xs) (SSymF ys) = let k = length xs in SSymF (xs ++ map (+k) ys)
 
 prop_Associative f (x,y,z) = f x (f y z) == f (f x y) z
@@ -162,6 +164,7 @@ instance (Eq k, Num k) => Algebra k SSymF where
 
 
 -- standard permutation, also called flattening, eg [6,2,5] -> [3,1,2]
+flatten :: (Num a, Enum a, Ord t) => [t] -> [a]
 flatten xs = let mapping = zip (L.sort xs) [1..]
         in [y | x <- xs, let Just y = lookup x mapping] 
 
@@ -223,12 +226,15 @@ ssymM xs | L.sort xs == [1..n] = return (SSymM xs)
          | otherwise = error "Not a permutation of [1..n]"
          where n = length xs
 
+inversions :: (Num b, Enum b, Ord a) => [a] -> [(b, b)]
 inversions xs = let ixs = zip [1..] xs
                 in [(i,j) | ((i,xi),(j,xj)) <- pairs ixs, xi > xj]
 
 -- should really check that xs and ys have the same length, and perhaps insist also on same type
+weakOrder :: (Ord a1, Ord a2) => [a1] -> [a2] -> Bool
 weakOrder xs ys = inversions xs `isSubsetAsc` inversions ys
 
+mu :: (Num a, Eq t) => ([t], t -> t -> Bool) -> t -> t -> a
 mu (set,po) x y = mu' x y where
     mu' x y | x == y    = 1
             | po x y    = negate $ sum [mu' x z | z <- set, po x z, po z y, z /= y]
@@ -375,13 +381,16 @@ ysymF t = return (YSymF t)
 depth (T l x r) = 1 + max (depth l) (depth r)
 depth E = 0
 -}
+nodecount :: Num a1 => PBT a2 -> a1
 nodecount (T l x r) = 1 + nodecount l + nodecount r
 nodecount E = 0
 
 -- in fact leafcount t = 1 + nodecount t (easiest to see with a picture)
+leafcount :: Num a1 => PBT a2 -> a1
 leafcount (T l x r) = leafcount l + leafcount r
 leafcount E = 1
 
+prefix :: PBT a -> [a]
 prefix E = []
 prefix (T l x r) = x : prefix l ++ prefix r
 
@@ -389,16 +398,19 @@ prefix (T l x r) = x : prefix l ++ prefix r
 -- Trees with distinct shapes have distinct signatures.
 -- In addition, if sorting on shapeSignature, smaller trees sort before larger trees,
 -- and leftward leaning trees sort before rightward leaning trees
+shapeSignature :: Num a1 => PBT a2 -> [a1]
 shapeSignature t = shapeSignature' (nodeCountTree t)
     where shapeSignature' E = [0] -- not [], otherwise we can't distinguish T (T E () E) () E from T E () (T E () E)
           shapeSignature' (T l x r) = x : shapeSignature' r ++ shapeSignature' l
 
+nodeCountTree :: Num a1 => PBT a2 -> PBT a1
 nodeCountTree E = E
 nodeCountTree (T l _ r) = T l' n r'
     where l' = nodeCountTree l
           r' = nodeCountTree r
           n = 1 + (case l' of E -> 0; T _ lc _ -> lc) + (case r' of E -> 0; T _ rc _ -> rc)
 
+leafCountTree :: Num a1 => PBT a2 -> PBT a1
 leafCountTree E = E
 leafCountTree (T l _ r) = T l' n r'
     where l' = leafCountTree l
@@ -406,6 +418,7 @@ leafCountTree (T l _ r) = T l' n r'
           n = (case l' of E -> 1; T _ lc _ -> lc) + (case r' of E -> 1; T _ rc _ -> rc)
 
 -- A tree that counts nodes in left and right subtrees
+lrCountTree :: Num a1 => PBT a2 -> PBT (a1, a1)
 lrCountTree E = E
 lrCountTree (T l _ r) = T l' (lc,rc) r'
     where l' = lrCountTree l
@@ -417,12 +430,14 @@ shape :: PBT a -> PBT ()
 shape t = fmap (\_ -> ()) t
 
 -- label the nodes of a tree in infix order while preserving its shape
+numbered :: Num a1 => PBT a2 -> PBT a1
 numbered t = numbered' 1 t
     where numbered' _ E = E
           numbered' i (T l x r) = let k = nodecount l in T (numbered' i l) (i+k) (numbered' (i+k+1) r)
 -- could also pair the numbers with the input labels
 
 
+splits :: PBT a -> [(PBT a, PBT a)]
 splits E = [(E,E)]
 splits (T l x r) = [(u, T v x r) | (u,v) <- splits l] ++ [(T l x u, v) | (u,v) <- splits r]
 
@@ -433,10 +448,12 @@ instance (Eq k, Num k, Ord a) => Coalgebra k (YSymF a) where
               -- using sumv rather than sum to avoid requiring Show a
     -- so again this is a kind of deconcatenation coproduct
 
+multisplits :: (Eq t, Num t) => t -> PBT a -> [[PBT a]]
 multisplits 1 t = [ [t] ]
 multisplits 2 t = [ [u,v] | (u,v) <- splits t ]
 multisplits n t = [ u:ws | (u,v) <- splits t, ws <- multisplits (n-1) v ]
 
+graft :: [PBT a] -> PBT a -> PBT a
 graft [t] E = t
 graft ts (T l x r) = let (ls,rs) = splitAt (leafcount l) ts
                      in T (graft ls l) x (graft rs r)
@@ -597,9 +614,11 @@ instance (Eq k, Num k) => HopfAlgebra k QSymM where
         -- antipode' (QSymM alpha) = (-1)^length alpha * sumv [return (QSymM (reverse beta)) | beta <- coarsenings alpha]
     -}
 
+coarsenings :: Num a => [a] -> [[a]]
 coarsenings (x1:x2:xs) = map (x1:) (coarsenings (x2:xs)) ++ coarsenings ((x1+x2):xs)
 coarsenings xs = [xs] -- for xs a singleton or null
 
+refinements :: [Int] -> [[Int]]
 refinements (x:xs) = [y++ys | y <- compositions x, ys <- refinements xs]
 refinements [] = [[]]
 
@@ -686,10 +705,12 @@ instance (Eq k, Num k) => Algebra k SymM where
 -- compositionsFromPartition2 = foldl (\ls r -> concat [shuffles l r | l <- ls]) [[]] . L.group
 
 -- The partition must be in either ascending or descending order (so that L.group does as expected)
+compositionsFromPartition :: Eq a => [a] -> [[a]]
 compositionsFromPartition = foldr (\l rs -> concatMap (shuffles l) rs) [[]] . L.group
 
 -- In effect, we multiply in Sym by converting to QSym, multiplying there, and converting back.
 -- It would be nice to find a more direct method.
+symMult :: [Int] -> [Int] -> [[Int]]
 symMult xs ys = filter isWeaklyDecreasing $ concat
     [quasiShuffles xs' ys' | xs' <- compositionsFromPartition xs, ys' <- compositionsFromPartition ys]
 
@@ -810,6 +831,7 @@ instance (Eq k, Num k) => HopfAlgebra k NSym where
 -- MAPS BETWEEN (POSETS AND) HOPF ALGEBRAS
 
 -- A descending tree is one in which a child is always less than a parent.
+descendingTree :: Ord a => [a] -> PBT a
 descendingTree [] = E
 descendingTree [x] = T E x E
 descendingTree xs = T l x r
@@ -846,10 +868,12 @@ descendingTreeMap = nf . fmap (YSymF . shape .  descendingTree')
 -- "inverse" for descendingTree
 -- These are the maps called gamma in Loday.pdf
 -- or are they? - these give the min and max inverse images in the lexicographic order, rather than the weak order?
+minPerm :: Num a => PBT a2 -> [a]
 minPerm t = minPerm' (lrCountTree t)
     where minPerm' E = []
           minPerm' (T l (lc,rc) r) = minPerm' l ++ [lc+rc+1] ++ map (+lc) (minPerm' r)
 
+maxPerm :: Num a => PBT a2 -> [a]
 maxPerm t = maxPerm' (lrCountTree t)
     where maxPerm' E = []
           maxPerm' (T l (lc,rc) r) = map (+rc) (maxPerm' l) ++ [lc+rc+1] ++ maxPerm' r
@@ -858,6 +882,7 @@ maxPerm t = maxPerm' (lrCountTree t)
 -- The composition of [1..n] obtained by treating each left-facing leaf as a cut
 -- Specifically, we visit the nodes in infix order, cutting after a node if it does not have an E as its right child
 -- This is the map called L in Loday.pdf
+leftLeafComposition :: PBT a -> [Int]
 leftLeafComposition E = []
 leftLeafComposition t = cuts $ tail $ leftLeafs t
     where leftLeafs (T l x E) = leftLeafs l ++ [False]
@@ -867,6 +892,7 @@ leftLeafComposition t = cuts $ tail $ leftLeafs t
                     (ls,r:rs) -> (length ls + 1) : cuts rs
                     (ls,[]) -> [length ls]
 
+leftLeafComposition' :: YSymF a -> QSymF
 leftLeafComposition' (YSymF t) = QSymF (leftLeafComposition t)
 
 -- |A Hopf algebra morphism from YSymF to QSymF
@@ -875,10 +901,12 @@ leftLeafCompositionMap = nf . fmap leftLeafComposition'
 
 
 -- The descent set of a permutation is [i | x_i > x_i+1], where we start the indexing from 1
+descents :: Ord b => [b] -> [Int]
 descents [] = []
 descents xs = map (+1) $ L.elemIndices True $ zipWith (>) xs (tail xs)
 
 -- The composition of [1..n] obtained by treating each descent as a cut
+descentComposition :: (Ord a1, Num a2) => [a1] -> [a2]
 descentComposition [] = []
 descentComposition xs = descComp 0 xs where
     descComp c (x1:x2:xs) = if x1 < x2 then descComp (c+1) (x2:xs) else (c+1) : descComp 0 (x2:xs)
@@ -892,6 +920,7 @@ descentMap :: (Eq k, Num k) => Vect k SSymF -> Vect k QSymF
 descentMap = nf . fmap (\(SSymF xs) -> QSymF (descentComposition xs))
 -- descentMap == leftLeafCompositionMap . descendingTreeMap
 
+underComposition :: QSymF -> SSymF
 underComposition (QSymF ps) = foldr under (SSymF []) [SSymF [1..p] | p <- ps]
     where under (SSymF xs) (SSymF ys) = let q = length ys
                                             zs = map (+q) xs ++ ys -- so it has a global descent at the split
@@ -927,18 +956,22 @@ globalDescentMap = nf . fmap (\(SSymM xs) -> QSymM (globalDescentComposition xs)
 -- A multiplication operation on trees
 -- (Connected with their being cofree)
 -- (intended to be used as infix)
+under :: PBT a -> PBT a -> PBT a
 under E t = t
 under (T l x r) t = T l x (under r t)
 
+isUnderIrreducible :: PBT a -> Bool
 isUnderIrreducible (T l x E) = True
 isUnderIrreducible _ = False
 
+underDecomposition :: PBT a -> [PBT a]
 underDecomposition (T l x r) = T l x E : underDecomposition r
 underDecomposition E = []
 
 
 -- GHC7.4.1 doesn't like the following type signature - a bug.
 -- ysymmToSh :: (Eq k, Num k) => Vect k (YSymM) => Vect k (Shuffle (PBT ()))
+ysymmToSh :: Functor f => f YSymM -> f (Shuffle (PBT ()))
 ysymmToSh = fmap ysymmToSh'
     where ysymmToSh' (YSymM t) = Sh (underDecomposition t)
 -- This is a coalgebra morphism (but not an algebra morphism)
@@ -967,6 +1000,7 @@ nsymToSymH = linear nsymToSym' where
 -- (?? This map NSym -> SSym is the dual of the descent map SSym -> QSym ??)
 -- (Loday.pdf, p30)
 -- (See also Hazewinkel p267-9)
+nsymToSSym :: (Eq k, Num k) => Vect k NSym -> Vect k SSymF
 nsymToSSym = linear nsymToSSym' where
     nsymToSSym' (NSym xs) = product [return (SSymF [1..n]) | n <- xs]
 

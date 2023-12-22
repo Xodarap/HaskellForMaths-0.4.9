@@ -60,6 +60,7 @@ class Monomial m where
     powers :: Eq v => m v -> [(v,Int)]
 -- why do we need "powers"??
 
+bind :: (Num k, Ord b, Show b, Algebra k b, Monomial m, Eq k, Eq t) => Vect k (m t) -> (t -> Vect k b) -> Vect k b
 V ts `bind` f = sum [c *> product [f x ^ i | (x,i) <- powers m] | (m, c) <- ts] 
 -- flipbind f = linear (\m -> product [f x ^ i | (x,i) <- powers m])
 
@@ -104,13 +105,18 @@ instance Eq v => DivisionBasis (NonComMonomial v) where
             then Just (ncm $ reverse as, ncm $ b:bs, ncm $ drop (length (b:bs)) cs)
             else findOverlap' (b:as) bs cs
 -}
+ncm :: [v] -> NonComMonomial v
 ncm xs = NCM (length xs) xs
 
+lm :: Vect k b -> b
 lm (V ((m,c):ts)) = m
+lc :: Vect k b -> k
+lt :: Vect k b -> Vect k b
 lc (V ((m,c):ts)) = c
 lt (V (t:ts)) = V [t]
 
 -- given f, gs, find ls, rs, f' such that f = sum (zipWith3 (*) ls gs rs) + f', with f' not divisible by any g
+quotRemNP :: (DivisionBasis m, Fractional k, Eq k, Ord m, Show m, Algebra k m) => Vect k m -> [Vect k m] -> ([(Vect k m, Vect k m)], Vect k m)
 quotRemNP f gs | all (/=0) gs = quotRemNP' f (replicate n (0,0), 0)
                | otherwise = error "quotRemNP: division by zero"
     where
@@ -129,6 +135,7 @@ quotRemNP f gs | all (/=0) gs = quotRemNP' f (replicate n (0,0), 0)
         in quotRemNP' (h-lth) (reverse lrs', f'+lth)
 
 -- It is only marginally (5-10%) more space/time efficient not to track the (lazily unevaluated) factors
+remNP :: (DivisionBasis m, Fractional k, Eq k, Ord m, Show m, Algebra k m) => Vect k m -> [Vect k m] -> Vect k m
 remNP f gs | all (/=0) gs = remNP' f 0
            | otherwise = error "remNP: division by zero"
     where
@@ -148,5 +155,6 @@ remNP f gs | all (/=0) gs = remNP' f 0
 
 infixl 7 %%
 -- f %% gs = r where (_,r) = quotRemNP f gs
+(%%) :: (DivisionBasis m, Fractional k, Ord m, Show m, Algebra k m, Eq k) => Vect k m -> [Vect k m] -> Vect k m
 f %% gs = remNP f gs
 

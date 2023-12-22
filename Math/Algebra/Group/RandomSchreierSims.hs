@@ -18,6 +18,7 @@ import Math.Algebra.Group.PermutationGroup
 import Math.Algebra.Group.SchreierSims (sift, cosetRepsGx, ss')
 
 
+testProdRepl :: IO ()
 testProdRepl = do (r,xs) <- initProdRepl $ _D 10
                   hs <- replicateM 20 $ nextProdRepl (r,xs)
                   mapM_ print hs
@@ -42,6 +43,7 @@ nextProdRepl (r,xs) =
        out <- updateArray xs s t u
        return out
 
+updateArray :: (MArray a1 a2 m, Ix i, Num i, Integral p, HasInverses a2, Num a2) => a1 i a2 -> i -> i -> p -> m (Maybe a2)
 updateArray xs s t u =
     let (swap,invert) = quotRem u 2 in
     if s == t
@@ -73,6 +75,7 @@ updateArray xs s t u =
 sgs :: (Ord a, Show a) => [Permutation a] -> [Permutation a]
 sgs gs = toListSet $ concatMap snd $ rss gs
 
+rss :: (Ord a, Show a) => [Permutation a] -> [((a, M.Map a (Permutation a)), [Permutation a])]
 rss gs = unsafePerformIO $
     do (r,xs) <- initProdRepl gs
        rss' (r,xs) (initLevels gs) 0
@@ -107,6 +110,7 @@ updateLevels' ls (r@((b,t),s):rs) h b' =
 
 -- recover the base tranversals from the sgs. gs must be an sgs
 -- baseTransversalsSGS gs = [let hs = [h | h <- gs, b <= minsupp h] in (b, cosetRepsGx hs b) | b <- bs]
+baseTransversalsSGS :: Ord k => [Permutation k] -> [(k, M.Map k (Permutation k))]
 baseTransversalsSGS gs = [let hs = filter ( (b <=) . minsupp ) gs in (b, cosetRepsGx hs b) | b <- bs]
     where bs = toListSet $ map minsupp gs
     -- where bs = toListSet $ concatMap supp gs

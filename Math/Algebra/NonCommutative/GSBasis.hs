@@ -8,6 +8,7 @@ import Math.Algebra.NonCommutative.NCPoly
 
 
 -- given two monomials f g, find if possible a,b,c with f=ab g=bc
+findOverlap :: Eq a => Monomial a -> Monomial a -> Maybe (Monomial a, Monomial a, Monomial a)
 findOverlap (M xs) (M ys) = findOverlap' [] xs ys where
     findOverlap' as [] cs = Nothing -- (reverse as, [], cs)
     findOverlap' as (b:bs) cs =
@@ -18,6 +19,7 @@ findOverlap (M xs) (M ys) = findOverlap' [] xs ys where
 -- given two monomials f g, find if possible l,r with g = lfr
 -- findInclusion (M xs) (M ys) = findInclusion' 
 
+sPoly :: (Eq r, Num r, Ord a, Show a) => NPoly r a -> NPoly r a -> NPoly r a
 sPoly f@(NP ((xs,c):_)) g@(NP ((ys,d):_)) =
     case findOverlap xs ys of
     Just (l,m,r) -> f * NP [(r,d)] - NP [(l,c)] * g
@@ -26,28 +28,34 @@ sPoly _ _ = 0 -- !! shouldn't reach this
 -- The point about the s-poly is that it cancels out the leading terms of the two polys, exposing their second terms
 
 
+gb1 :: (Fractional r, Ord v, Show v, Eq r) => [NPoly r v] -> [NPoly r v]
 gb1 fs = gb' fs [sPoly fi fj | fi <- fs, fj <- fs, fi /= fj] where -- unlike the commutative case, we take sPolys both ways round
     gb' gs (h:hs) = let h' = h %% gs in
                     if h' == 0 then gb' gs hs else gb' (h':gs) (hs ++ [sPoly h' g | g <- gs] ++ [sPoly g h' | g <- gs])
     gb' gs [] = gs
 
+reduce :: (Fractional r, Ord r, Ord v, Show v) => [NPoly r v] -> [NPoly r v]
 reduce gs = reduce' [] gs where
     reduce' gs' (g:gs) | g' == 0   = reduce' gs' gs
                        | otherwise = reduce' (g':gs') gs
                        where g' = g %% (gs'++gs)
     reduce' gs' [] = reverse $ sort $ gs'
 
+gb :: (Show v, Fractional r, Ord v, Ord r) => [NPoly r v] -> [NPoly r v]
 gb fs = map toMonic $ reduce $ gb1 fs
 
+gb' :: (Fractional r, Ord r, Ord v, Show v) => [NPoly r v] -> [NPoly r v]
 gb' fs = reduce $ gb1 fs
 
 
+gb2 :: (Fractional r, Ord v, Show v, Eq r) => [NPoly r v] -> [NPoly r v]
 gb2 fs = gb' fs [(fi,fj) | fi <- fs, fj <- fs, fi /= fj] where -- unlike the commutative case, we take sPolys both ways round
     gb' gs ((fi,fj):pairs) =
         let h = sPoly fi fj %% gs in
         if h == 0 then gb' gs pairs else gb' (h:gs) (pairs ++ [(h,g) | g <- gs] ++ [(g,h) | g <- gs])
     gb' gs [] = gs
 
+gb2' :: (Fractional r, Ord a, Show a, Eq r) => [NPoly r a] -> [(NPoly r a, NPoly r a, NPoly r a, NPoly r a)]
 gb2' fs = gb' fs [(fi,fj) | fi <- fs, fj <- fs, fi /= fj] where -- unlike the commutative case, we take sPolys both ways round
     gb' gs ((fi,fj):pairs) =
         let h = sPoly fi fj %% gs in
@@ -56,6 +64,7 @@ gb2' fs = gb' fs [(fi,fj) | fi <- fs, fj <- fs, fi /= fj] where -- unlike the co
 
 
 -- Monomial basis for the quotient algebra, where gs are the generators, rs the relations
+mbasisQA :: (Eq r, Fractional r, Ord v, Show v) => [NPoly r v] -> [NPoly r v] -> [NPoly r v]
 mbasisQA gs rs = mbasisQA' [1] where
     mbasisQA' [] = [] -- the quotient ring has a finite monomial basis
     mbasisQA' ms = let ms' = [g*m | g <- gs, m <- ms, g*m %% rs == g*m] -- ie, not reducible

@@ -46,6 +46,7 @@ incidenceGraphLS l = graph (vs,es) where
     es = [ [v1,v2] | [v1@(i,j,lij), v2@(i',j',lij')] <- combinationsOf 2 vs, i == i' || j == j' || lij == lij' ]
     m ! (i,j) = m !! (i-1) !! (j-1)
 
+incidenceGraphLS' :: Eq a => [[a]] -> Graph (Int, Int)
 incidenceGraphLS' l = graph (vs,es) where
     n = length l -- the order of the latin square
     vs = [ (i, j) | i <- [1..n], j <- [1..n] ]
@@ -62,6 +63,7 @@ isOrthogonal :: (Ord a, Ord b) => [[a]] -> [[b]] -> Bool
 isOrthogonal greeks latins = isOneOfEach pairs
     where pairs = zip (concat greeks) (concat latins)
 
+findMOLS :: (Num t, Ord a, Eq t) => t -> [[[a]]] -> [[[[a]]]]
 findMOLS k lsqs = findMOLS' k [] lsqs where
     findMOLS' 0 ls _ = [reverse ls]
     findMOLS' i ls (r:rs) =
@@ -91,12 +93,14 @@ fromProjectivePlane (D xs bs) = map toLS parallelClasses where
 -- ORTHOGONAL ARRAYS
 -- Godsil & Royle p224
 
+isOA :: Ord b => (Int, Int) -> [[b]] -> Bool
 isOA (k,n) rows =
     length rows == k &&
     all ( (== n^2) . length ) rows &&
     all isOneOfEach [zip ri rj | [ri,rj] <- combinationsOf 2 rows ]
 
 -- An OA(3,n) from a latin square
+fromLS :: Foldable t => t [Int] -> [[Int]]
 fromLS l =
     [ concat [replicate n i | i <- [1..n] ] -- row numbers
     , concat (replicate n [1..n])           -- column numbers
@@ -104,6 +108,7 @@ fromLS l =
     ]
     where n = length l -- the order of the latin square
 
+fromMOLS :: Foldable t => [t [Int]] -> [[Int]]
 fromMOLS mols =
     (concat [replicate n i | i <- [1..n] ]) : -- row numbers
     (concat (replicate n [1..n]) ) :          -- column numbers
@@ -113,12 +118,14 @@ fromMOLS mols =
 -- The graph defined by an OA(k,n)
 -- It is strongly regular with parameters ( n^2, (n-1)k, n-2+(k-1)(k-2), k(k-1) )
 -- Godsil & Royle p225
+graphOA :: Ord a => [[a]] -> Graph [a]
 graphOA rows = graph (vs,es) where
     vs = L.transpose rows -- the vertices are the columns of the OA
     es = [ [v1,v2] | [v1,v2] <- combinationsOf 2 vs, or (zipWith (==) v1 v2) ]
     -- two vertices are adjacent if they agree in any position
 
 -- Expected SRG parameters
+srgParamsOA :: Num d => (d, d) -> Maybe (d, d, d, d)
 srgParamsOA (k,n) =  Just ( n^2, (n-1)*k, n-2+(k-1)*(k-2), k*(k-1) )
 
 -- eg srgParams (4,4) == srgParams $ graphOA $ init $ fromMOLS $ fromProjectivePlane $ pg2 f4

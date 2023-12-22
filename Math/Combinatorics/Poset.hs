@@ -31,14 +31,22 @@ instance Eq t => Eq (Poset t) where
 instance Show t => Show (Poset t) where
     show (Poset (set,po)) = "Poset " ++ show set
 
+implies :: Bool -> Bool -> Bool
 implies p q = q || not p
 
+isReflexive :: ([t], t -> t -> Bool) -> Bool
 isReflexive (set,po) = and [x `po` x | x <- set]
+
+isAntisymmetric :: Eq a => ([a], a -> a -> Bool) -> Bool
 isAntisymmetric (set,po) = and [((x `po` y) && (y `po` x)) `implies` (x == y) | x <- set, y <- set]
+
+isTransitive :: ([t], t -> t -> Bool) -> Bool
 isTransitive (set,po) = and [((x `po` y) && (y `po` z)) `implies` (x `po` z) | x <- set, y <- set, z <- set]
 
+isPoset :: Eq t => ([t], t -> t -> Bool) -> Bool
 isPoset poset = isReflexive poset && isAntisymmetric poset && isTransitive poset
-    
+
+poset :: Eq t => ([t], t -> t -> Bool) -> Poset t
 poset (set,po)
     | isPoset (set,po) = Poset (set,po)
     | otherwise = error "poset: Not a partial order"
@@ -47,8 +55,10 @@ poset (set,po)
 -- Most of the posets we will deal with are in fact lattices, meaning that any two elements
 -- have a meet (greatest lower bound) and join (least upper bound)
 
+intervals :: Poset b -> [(b, b)]
 intervals (Poset (set,po)) = [(a,b) | a <- set, b <- set, a `po` b]
 
+interval :: Poset a -> (a, a) -> [a]
 interval (Poset (set,po)) (x,z) = [y | y <- set, x `po` y, y `po` z]
 
 
@@ -72,8 +82,10 @@ antichainN n = Poset ( [1..n], (==) )
 
 -- LATTICE OF (POSITIVE) DIVISORS OF N
 
+divides :: Integral a => a -> a -> Bool
 divides a b = b `rem` a == 0
 
+divisors :: Integral a => a -> [a]
 divisors n = toSet [ d' | d <- takeWhile (\d -> d*d <= n) [1..],
                           let (q,r) = n `quotRem` d, r == 0,
                           d' <- [d,q] ]
@@ -88,6 +100,7 @@ posetD n | n >= 1 = Poset ( divisors n, divides )
 -- LATTICE OF SUBSETS OF [1..N] ORDERED BY INCLUSION
 -- (Boolean lattice)
 
+powerset :: [a] -> [[a]]
 powerset [] = [[]]
 powerset (x:xs) = let p = powerset xs in p ++ map (x:) p
 
@@ -108,13 +121,14 @@ posetB n = Poset ( powerset [1..n], LS.isSubset )
 
 
 -- LATTICE OF SET PARTITIONS OF [1..N] ORDERED BY REFINEMENT
-
+partitions :: [a] -> [[[a]]]
 partitions [] = [[]]
 partitions [x] = [[[x]]]
 partitions (x:xs) = let ps = partitions xs in
     map ([x]:) ps ++ [ (x:cell):p' | p <- ps, (cell,p') <- picks p]
 -- if the input is sorted, then so is the output
 
+isRefinement :: Ord a => [[a]] -> [[a]] -> Bool
 isRefinement a b = and [or [acell `isSubset` bcell | bcell <- b] | acell <- a]
 -- if we know that a and b are appropriately sorted, then this can probably be done more efficiently
 
@@ -128,8 +142,9 @@ posetP n = Poset ( partitions [1..n], isRefinement )
 
 -- LATTICE OF INTERVAL PARTITIONS OF [1..N] ORDERED BY REFINEMENT
 -- Interval partitions of [1..n] correspond to compositions of n
-
+intervalPartitions :: (Eq a, Num a) => [a] -> [[[a]]]
 intervalPartitions xs = filter (all isInterval) (partitions xs)
+
 
 isInterval (x1:x2:xs) = x1+1 == x2 && isInterval (x2:xs)
 isInterval _ = True
@@ -150,6 +165,7 @@ integerPartitions n | n >= 0 = ips n n where
     ips n m | m <= n = map (m:) (ips (n-m) m) ++ ips n (m-1)
             | otherwise = ips n n
 
+isIPRefinement :: (Ord a, Num a) => [a] -> [a] -> Bool
 isIPRefinement ys xs = dfs xs ys
     where dfs (x:xs) (y:ys) | x < y = False
                             | x == y = dfs xs ys
@@ -178,19 +194,21 @@ posetIP n = Poset (integerPartitions n, isIPRefinement)
 
 
 -- LATTICE OF SUBSPACES OF Fq^n
-
+subspaces :: (Eq a, Num a) => [a] -> Int -> [[[a]]]
 subspaces fq n = [] : concatMap (flatsPG (n-1) fq) [0..n-1]
 -- note that flatsPG returns the subspaces as a matrix of row vectors in reduced row echelon form
 
 -- inSpanRE m v returns whether the vector v is in the span of the rows of the matrix m, where m is required to be in row echelon form
+isSubspace :: (Foldable t, Eq a, Num a) => t [a] -> [[a]] -> Bool
 isSubspace s1 s2 = all (inSpanRE s2) s1
 
 -- This is the projective geometry PG(n,q)
 -- |posetL n fq is the lattice of subspaces of the vector space Fq^n, ordered by inclusion.
 -- Subspaces are represented by their reduced row echelon form.
 -- Example usage: posetL 2 f3
+
 posetL :: (Eq fq, Num fq) => Int -> [fq] -> Poset [[fq]]
-posetL n fq = Poset ( subspaces fq n, isSubspace ) 
+posetL n fq = Poset ( subspaces fq n, isSubspace )
 
 
 -- choose n k = product [n-k+1..n] `div` product [1..k]

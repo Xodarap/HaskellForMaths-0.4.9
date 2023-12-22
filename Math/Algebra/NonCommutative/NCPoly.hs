@@ -28,6 +28,7 @@ instance (Eq v, Show v) => Num (Monomial v) where
     fromInteger 1 = M []
 
 -- try to find l, r such that a = lbr
+divM :: Eq v => Monomial v -> Monomial v -> Maybe (Monomial v, Monomial v)
 divM (M a) (M b) = divM' [] a where
     divM' ls (r:rs) =
         if b `L.isPrefixOf` (r:rs)
@@ -65,9 +66,11 @@ instance (Eq r, Num r, Ord v, Show v) => Num (NPoly r v) where
     fromInteger 0 = NP []
     fromInteger n = NP [(fromInteger 1, fromInteger n)]
 
+cmpTerm :: Ord a => (a, b1) -> (a, b2) -> Ordering
 cmpTerm (a,c) (b,d) = case compare a b of EQ -> EQ; GT -> LT; LT -> GT -- in mpolys we put "larger" terms first
 
 -- inputs in descending order
+mergeTerms :: (Ord a1, Eq a2, Num a2) => [(a1, a2)] -> [(a1, a2)] -> [(a1, a2)]
 mergeTerms (t@(g,c):ts) (u@(h,d):us) =
     case cmpTerm t u of
     LT -> t : mergeTerms ts (u:us)
@@ -76,6 +79,7 @@ mergeTerms (t@(g,c):ts) (u@(h,d):us) =
     where e = c + d
 mergeTerms ts us = ts ++ us -- one of them is null
 
+collect :: (Num a1, Eq a2, Eq a1) => [(a2, a1)] -> [(a2, a1)]
 collect (t1@(g,c):t2@(h,d):ts)
     | g == h = collect $ (g,c+d):ts
     | c == 0  = collect $ t2:ts
@@ -117,6 +121,7 @@ lc (NP ((m,c):ts)) = c
 lt (NP (t:ts)) = NP [t]
 
 -- given f, gs, find ls, rs, f' such that f = sum (zipWith3 (*) ls gs rs) + f', with f' not divisible by any g
+quotRemNP :: (Fractional r, Ord v, Show v, Eq r) => NPoly r v -> [NPoly r v] -> ([(NPoly r v, NPoly r v)], NPoly r v)
 quotRemNP f gs | all (/=0) gs = quotRemNP' f (replicate n (0,0), 0)
                | otherwise = error "quotRemNP: division by zero"
     where
@@ -135,6 +140,7 @@ quotRemNP f gs | all (/=0) gs = quotRemNP' f (replicate n (0,0), 0)
         in quotRemNP' (h-lth) (reverse lrs', f'+lth)
 
 -- It is only marginally (5-10%) more space/time efficient not to track the (lazily unevaluated) factors
+remNP :: (Fractional r, Ord v, Show v, Eq r) => NPoly r v -> [NPoly r v] -> NPoly r v
 remNP f gs | all (/=0) gs = remNP' f 0
 -- let result = remNP' f 0 in if result == remNP2 f gs then result else error ("remNP2 " ++ show f ++ " " ++ show gs)
            | otherwise = error "remNP: division by zero"
@@ -161,6 +167,7 @@ f %% gs = remNP f gs
 -- The idea is to avoid dividing by lc g, because sometimes our coefficient ring is not a field
 -- Passes all the knot theory tests
 -- However, it may be that if we ever get a non-invertible element at the front, we are in trouble anyway
+remNP2 :: (Num r, Ord v, Show v, Eq r) => NPoly r v -> [NPoly r v] -> NPoly r v
 remNP2 f gs | all (/=0) gs = remNP' f 0
            | otherwise = error "remNP: division by zero"
     where
@@ -184,17 +191,20 @@ remNP2 f gs | all (/=0) gs = remNP' f 0
 
 -- OTHER STUFF
 
+toMonic :: (Eq r, Ord v, Show v, Fractional r) => NPoly r v -> NPoly r v
 toMonic 0 = 0
 toMonic (NP ts@((_,c):_))
     | c == 1 = NP ts
     | otherwise = NP $ map (\(m,d)->(m,d/c)) ts
 
 -- injection of field elements into polynomial ring
+inject :: (Num r, Eq r, Eq v, Show v) => r -> NPoly r v
 inject 0 = NP []
 inject c = NP [(fromInteger 1, c)]
 
 -- substitute terms for variables in an NPoly
 -- eg subst [(x,a),(y,a+b),(z,c^2)] (x*y+z) -> a*(a+b)+c^2
+subst :: (Num r1, Ord v, Show v, Eq r1, Eq p, Eq r2, Show r2, Show p, Num r2) => [(NPoly r2 p, NPoly r1 v)] -> NPoly r1 p -> NPoly r1 v
 subst vts (NP us) = sum [inject c * substM m | (m,c) <- us] where
     substM (M xs) = product [substV x | x <- xs]
     substV v =
