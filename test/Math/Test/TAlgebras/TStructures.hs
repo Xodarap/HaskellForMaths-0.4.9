@@ -207,7 +207,7 @@ prop_HopfPairing (u,v,x,y) =
 -- ALTERNATIVE DEFINITION OF ALGEBRA
 
 type TensorProd k u v =
-    (u ~ Vect k a, v ~ Vect k b) => Vect k (Tensor a b)
+    forall a b. (u ~ Vect k a, v ~ Vect k b) => Vect k (Tensor a b)
 
 class Algebra2 k a where
     unit2 :: k -> a
