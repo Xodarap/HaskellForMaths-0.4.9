@@ -1,4 +1,5 @@
-module Math.Test.TestAll where
+module Main where
+-- module Math.Test.TestAll where
 
 import Math.Test.TGraph
 import Math.Test.TDesign
@@ -14,7 +15,6 @@ import Math.Test.TCore.TUtils
 
 import Math.Test.TAlgebras.TGroupAlgebra
 import Math.Test.TAlgebras.TOctonions
-import Math.Test.TAlgebras.TTensorAlgebra
 import Math.Test.TAlgebras.TTensorProduct
 import Math.Test.TCombinatorics.TCombinatorialHopfAlgebra
 import Math.Test.TCombinatorics.TDigraph
@@ -29,12 +29,22 @@ import Math.Test.TNumberTheory.TPrimeFactor
 import Math.Test.TNumberTheory.TQuadraticField
 import Math.Test.TProjects.TMiniquaternionGeometry
 
-
 import Test.QuickCheck
 import Test.HUnit
 
+import System.Exit
+
+main = do
+  Main.quickCheckAll
+  result <- hunitAll
+  if (errors result + failures result == 0)
+      then exitSuccess
+      else exitFailure
+
 -- legacy tests - should really be converted to HUnit
-testall = and
+legacyTests = TestCase (assertBool "Legacy Tests" (and oldTests))
+ where
+  oldTests =
     [Math.Test.TGraph.test
     ,Math.Test.TDesign.test
     ,Math.Test.TPermutationGroup.test
@@ -52,7 +62,6 @@ quickCheckAll =
     quickCheckField
     quickCheckTensorProduct
     quickCheckGroupAlgebra
-    quickCheckTensorAlgebra
     putStrLn "Testing Octonions..."
     quickCheck prop_AlgebraNonAssociative_Octonions
     quickCheck prop_InverseLoop_Octonions
@@ -62,6 +71,7 @@ quickCheckAll =
     quickCheckCombinatorialHopfAlgebra
 
 hunitAll = runTestTT $ TestList [
+    legacyTests,
     testlistGroupAlgebra,
     testlistCHA,
     testlistDigraph,

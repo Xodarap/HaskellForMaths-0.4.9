@@ -5,7 +5,7 @@
 
 module Math.Test.TAlgebras.TTensorProduct where
 
-import Prelude hiding ( (*>) )
+import Prelude as P hiding ( (*>) )
 
 import Test.QuickCheck
 import Math.Algebras.VectorSpace
@@ -14,7 +14,6 @@ import Math.Core.Field
 -- import Math.Algebra.Field.Base
 import Math.Test.TAlgebras.TVectorSpace
 
-import Prelude as P
 import Control.Category as C
 import Control.Arrow
 
@@ -26,10 +25,10 @@ quickCheckTensorProduct = do
 
 
 type DirectSum k u v =
-    (u ~ Vect k a, v ~ Vect k b) => Vect k (DSum a b)
+    forall a b. (u ~ Vect k a, v ~ Vect k b) => Vect k (DSum a b)
 
 type TensorProd k u v =
-    (u ~ Vect k a, v ~ Vect k b) => Vect k (Tensor a b)
+    forall a b. (u ~ Vect k a, v ~ Vect k b) => Vect k (Tensor a b)
 
 type En = Vect Q EBasis
 
